@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: redis-deployment
+    namespace: redis
+spec:
+    replicas: 1
+    strategy:
+        type: RollingUpdate
+        rollingUpdate:
+            maxUnavailable: 0
+            maxSurge: 1
+    selector:
+        matchLabels:
+            app: redis
+    template:
+        metadata:
+            labels:
+                app: redis
+        spec:
+            automountServiceAccountToken: false
+            containers:
+                - name: redis-container
+                  image: redis:alpine
+                  ports:
+                      - containerPort: 6379
+                  resources:
+                      limits:
+                          cpu: "100m"
+                          memory: "256Mi"
+                          ephemeral-storage: "1Gi"
+                      requests:
+                          cpu: "50m"
+                          memory: "128Mi"
+                          ephemeral-storage: "500Mi"
+                  env:
+                      - name: REDIS_PASSWORD
+                        valueFrom:
+                            secretKeyRef:
+                                name: redis-secrets
+                                key: REDIS_PASSWORD
+                  args:
+                      - redis-server
+                      - "--requirepass"
+                      - "$(REDIS_PASSWORD)"
+                  volumeMounts:
+                      - name: data
+                        mountPath: /data
+            volumes:
+                - name: data
+                  emptyDir:
+                      sizeLimit: "1Gi"
